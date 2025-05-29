@@ -2,44 +2,40 @@ package db
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"time"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
+// MongoDB struct holds the MongoDB client instance.
 type MongoDB struct {
-	Client   *mongo.Client
-	Database *mongo.Database
+	Client *mongo.Client
 }
 
-func NewMongoDB(uri, database string) (*MongoDB, error) {
+// InitMongoDB connects to the MongoDB database.
+func InitMongoDB(uri string) (*MongoDB, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to MongoDB: %w", err)
 	}
 
-	if err := client.Ping(ctx, readpref.Primary()); err != nil {
-		return nil, err
+	// Ping the primary to verify connection
+	if err := client.Ping(ctx, nil); err != nil {
+		return nil, fmt.Errorf("failed to ping MongoDB: %w", err)
 	}
 
-	db := client.Database(database)
-	log.Println("Connected to MongoDB")
-	return &MongoDB{Client: client, Database: db}, nil
+	fmt.Println("Connected to MongoDB!")
+	return &MongoDB{Client: client}, nil
 }
 
-func (m *MongoDB) Disconnect(ctx context.Context) error {
-	if m.Client != nil {
-		return m.Client.Disconnect(ctx)
-	}
-	return nil
-}
-
-func (m *MongoDB) Database() *mongo.Database {
-	return m.Database
+// GetDatabase returns a specific MongoDB database instance.
+// This is a method on the MongoDB struct, allowing you to easily get
+// a database connection from your initialized client.
+func (m *MongoDB) GetDatabase(dbName string) *mongo.Database {
+	return m.Client.Database(dbName)
 }

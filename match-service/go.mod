@@ -3,7 +3,8 @@ module github.com/abaika-abay/live_sports_project/match-service
 go 1.23.4
 
 require (
-	github.com/abaika-abay/live_sports_project/common v0.0.0-20250529191628-c039128a9f37
+	github.com/abaika-abay/live_sports_project/common v0.0.0-20250529195451-1255fadca246
+	github.com/gorilla/websocket v1.5.3
 	go.mongodb.org/mongo-driver v1.17.3
 	google.golang.org/grpc v1.72.2
 	google.golang.org/protobuf v1.36.6

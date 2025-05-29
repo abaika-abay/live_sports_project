@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"time" // Added for initial match data
+	"net/http" // New import for HTTP server
+	"slices"
+	"time"
 
 	"google.golang.org/grpc"
 
@@ -14,7 +16,7 @@ import (
 	"github.com/abaika-abay/live_sports_project/match-service/proto"
 	"github.com/abaika-abay/live_sports_project/match-service/repository"
 	"github.com/abaika-abay/live_sports_project/match-service/service"
-	"github.com/abaika-abay/live_sports_project/match-service/sportradar" // Import sportradar
+	"github.com/abaika-abay/live_sports_project/match-service/sportradar"
 )
 
 func main() {
@@ -34,10 +36,10 @@ func main() {
 	}()
 
 	// Initialize Sportradar Client
-	srClient := sportradar.NewSportradarClient()
+	// For now, let's keep using the mock for easier testing of WebSockets
+	// You'll switch to NewSportradarHTTPClient when you're ready for real API calls.
+	srClient := sportradar.NewMockSportradarClient() // Using the mock for now
 
-	// --- Optional: Add some initial mock match data to Sportradar and MongoDB ---
-	// You might automate this with a migration script or a dedicated admin tool
 	repo := repository.NewMatchRepository(dbHandler)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -57,15 +59,98 @@ func main() {
 		Fouls:      0,
 		Cards:      []string{},
 	}
-	err = repo.CreateMatch(ctx, initialMatch)
-	if err != nil {
-		fmt.Printf("Warning: Failed to create initial match %s in DB (might already exist): %v\n", initialMatchID, err)
+	if err := repo.UpdateMatch(ctx, initialMatch); err != nil {
+		fmt.Printf("Warning: Failed to ensure initial match %s exists in DB: %v\n", initialMatchID, err)
+	} else {
+		fmt.Printf("Ensured initial match data for: %s in DB\n", initialMatchID)
 	}
-	srClient.AddInitialMatchData(initialMatch) // Add to mock Sportradar
-	fmt.Printf("Initialized mock match data for: %s\n", initialMatchID)
-	// --- End of Optional Initial Data ---
+	if mockSR, ok := srClient.(*sportradar.MockSportradarClient); ok {
+		mockSR.AddInitialMatchData(initialMatch)
+		fmt.Printf("Initialized mock Sportradar data for: %s\n", initialMatchID)
+	}
 
-	matchService := service.NewMatchService(dbHandler, srClient) // Pass Sportradar client here
+	// --- Start WebSocket setup (Part 2) ---
+	websocketHub := service.NewWebSocketHub()
+	go websocketHub.Run() // Run the hub's goroutine
+
+	// Create a new HTTP server for WebSockets (often on a different port)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws", websocketHub.HandleConnections)
+	go func() {
+		log.Printf("WebSocket server starting on %s", c.WebSocketPort)
+		if err := http.ListenAndServe(c.WebSocketPort, mux); err != nil {
+			log.Fatalf("WebSocket server failed to start: %v", err)
+		}
+	}()
+	// --- End WebSocket setup ---
+
+	matchService := service.NewMatchService(dbHandler, srClient, websocketHub) // Pass WebSocket hub here
+
+	// --- Start Background Polling (Part 3) ---
+	go func() {
+		pollInterval := 5 * time.Second // Poll Sportradar every 5 seconds
+		ticker := time.NewTicker(pollInterval)
+		defer ticker.Stop()
+
+		log.Printf("Starting Sportradar background polling every %s for %s", pollInterval, initialMatchID) // Polling for fixed match for demo
+		for range ticker.C {
+			pollCtx, cancelPoll := context.WithTimeout(context.Background(), 3*time.Second) // Shorter timeout for polling
+			matchIDToPoll := initialMatchID                                                 // Or iterate over all live matches in DB
+			currentMatch, err := repo.GetMatch(pollCtx, matchIDToPoll)                      // Get current state from DB
+			if err != nil {
+				log.Printf("Polling: Could not get match %s from DB: %v", matchIDToPoll, err)
+				cancelPoll()
+				continue
+			}
+
+			srUpdate, err := srClient.FetchMatchData(pollCtx, matchIDToPoll)
+			if err != nil {
+				log.Printf("Polling: Failed to fetch real-time data for %s from Sportradar: %v", matchIDToPoll, err)
+				cancelPoll()
+				continue
+			}
+
+			// Check if there are actual changes before updating and broadcasting
+			if srUpdate.HomeScore != currentMatch.HomeScore || srUpdate.AwayScore != currentMatch.AwayScore ||
+				srUpdate.Status != currentMatch.Status || srUpdate.LastEvent != currentMatch.LastEvent ||
+				srUpdate.Possession != currentMatch.Possession || srUpdate.Shots != currentMatch.Shots ||
+				srUpdate.Fouls != currentMatch.Fouls || !slices.Equal(srUpdate.Cards, currentMatch.Cards) { // Use slices.Equal for slices
+				// Update current match object with new SR data
+				currentMatch.HomeScore = srUpdate.HomeScore
+				currentMatch.AwayScore = srUpdate.AwayScore
+				currentMatch.Status = srUpdate.Status
+				currentMatch.LastEvent = srUpdate.LastEvent
+				currentMatch.Possession = srUpdate.Possession
+				currentMatch.Shots = srUpdate.Shots
+				currentMatch.Fouls = srUpdate.Fouls
+				currentMatch.Cards = srUpdate.Cards // Deep copy if needed
+
+				// Update database
+				if err := repo.UpdateMatch(pollCtx, currentMatch); err != nil {
+					log.Printf("Polling: Failed to update DB for match %s: %v", matchIDToPoll, err)
+					cancelPoll()
+					continue
+				}
+
+				// Broadcast update via WebSockets
+				protoMatch := &proto.MatchResponse{
+					MatchId:    currentMatch.MatchID,
+					Status:     currentMatch.Status,
+					HomeScore:  currentMatch.HomeScore,
+					AwayScore:  currentMatch.AwayScore,
+					LastEvent:  currentMatch.LastEvent,
+					Possession: currentMatch.Possession,
+					Shots:      currentMatch.Shots,
+					Fouls:      currentMatch.Fouls,
+					Cards:      currentMatch.Cards,
+				}
+				websocketHub.BroadcastMatchUpdate(currentMatch.MatchID, protoMatch)
+				log.Printf("Polling: Broadcasted live update for match %s (score %d-%d).\n", currentMatch.MatchID, currentMatch.HomeScore, currentMatch.AwayScore)
+			}
+			cancelPoll()
+		}
+	}()
+	// --- End Background Polling ---
 
 	lis, err := net.Listen("tcp", c.Port)
 	if err != nil {
@@ -75,8 +160,8 @@ func main() {
 	s := grpc.NewServer()
 	proto.RegisterMatchServiceServer(s, matchService)
 
-	log.Printf("Match Service listening at %v", lis.Addr())
+	log.Printf("Match Service gRPC listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
-		log.Fatalf("failed to serve: %v", err)
+		log.Fatalf("failed to serve gRPC: %v", err)
 	}
 }
