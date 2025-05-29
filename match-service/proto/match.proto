@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package match;
+
+option go_package = "github.com/abaika-abay/live_sports_project/match-service/proto";
+
+service MatchService {
+  rpc GetMatchUpdates (MatchRequest) returns (MatchResponse);
+  rpc CreateMatch (CreateMatchRequest) returns (MatchResponse);
+}
+
+message MatchRequest {
+  string match_id = 1;
+}
+
+message CreateMatchRequest {
+  string match_id = 1;
+  string home_team = 2;
+  string away_team = 3;
+}
+
+message MatchResponse {
+  string match_id = 1;
+  string status = 2;
+  int32 home_score = 3;
+  int32 away_score = 4;
+  string last_event = 5;
+  int32 possession = 6;
+  int32 shots = 7;
+  int32 fouls = 8;
+  repeated string cards = 9;
+}

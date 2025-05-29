@@ -39,3 +39,7 @@ func (m *MongoDB) Disconnect(ctx context.Context) error {
 	}
 	return nil
 }
+
+func (m *MongoDB) Database() *mongo.Database {
+	return m.Database
+}
