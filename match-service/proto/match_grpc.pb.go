@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v6.30.2
-// source: proto/match.proto
+// source: match-service/proto/match.proto
 
 package proto
 
@@ -11,6 +11,7 @@ import (
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This is a compile-time assertion to ensure that this generated file
@@ -19,8 +20,10 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	MatchService_GetMatchUpdates_FullMethodName = "/match.MatchService/GetMatchUpdates"
-	MatchService_CreateMatch_FullMethodName     = "/match.MatchService/CreateMatch"
+	MatchService_GetMatchUpdates_FullMethodName   = "/match.MatchService/GetMatchUpdates"
+	MatchService_CreateMatch_FullMethodName       = "/match.MatchService/CreateMatch"
+	MatchService_UpdateMatchEvent_FullMethodName  = "/match.MatchService/UpdateMatchEvent"
+	MatchService_GetAdminMatchList_FullMethodName = "/match.MatchService/GetAdminMatchList"
 )
 
 // MatchServiceClient is the client API for MatchService service.
@@ -29,6 +32,10 @@ const (
 type MatchServiceClient interface {
 	GetMatchUpdates(ctx context.Context, in *MatchRequest, opts ...grpc.CallOption) (*MatchResponse, error)
 	CreateMatch(ctx context.Context, in *CreateMatchRequest, opts ...grpc.CallOption) (*MatchResponse, error)
+	// New RPC for admin to update match events
+	UpdateMatchEvent(ctx context.Context, in *UpdateMatchEventRequest, opts ...grpc.CallOption) (*MatchResponse, error)
+	// Optional: RPC for getting a list of matches for admin panel
+	GetAdminMatchList(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*MatchListResponse, error)
 }
 
 type matchServiceClient struct {
@@ -59,12 +66,36 @@ func (c *matchServiceClient) CreateMatch(ctx context.Context, in *CreateMatchReq
 	return out, nil
 }
 
+func (c *matchServiceClient) UpdateMatchEvent(ctx context.Context, in *UpdateMatchEventRequest, opts ...grpc.CallOption) (*MatchResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MatchResponse)
+	err := c.cc.Invoke(ctx, MatchService_UpdateMatchEvent_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *matchServiceClient) GetAdminMatchList(ctx context.Context, in *emptypb.Empty, opts ...grpc.CallOption) (*MatchListResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MatchListResponse)
+	err := c.cc.Invoke(ctx, MatchService_GetAdminMatchList_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // MatchServiceServer is the server API for MatchService service.
 // All implementations must embed UnimplementedMatchServiceServer
 // for forward compatibility.
 type MatchServiceServer interface {
 	GetMatchUpdates(context.Context, *MatchRequest) (*MatchResponse, error)
 	CreateMatch(context.Context, *CreateMatchRequest) (*MatchResponse, error)
+	// New RPC for admin to update match events
+	UpdateMatchEvent(context.Context, *UpdateMatchEventRequest) (*MatchResponse, error)
+	// Optional: RPC for getting a list of matches for admin panel
+	GetAdminMatchList(context.Context, *emptypb.Empty) (*MatchListResponse, error)
 	mustEmbedUnimplementedMatchServiceServer()
 }
 
@@ -80,6 +111,12 @@ func (UnimplementedMatchServiceServer) GetMatchUpdates(context.Context, *MatchRe
 }
 func (UnimplementedMatchServiceServer) CreateMatch(context.Context, *CreateMatchRequest) (*MatchResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateMatch not implemented")
+}
+func (UnimplementedMatchServiceServer) UpdateMatchEvent(context.Context, *UpdateMatchEventRequest) (*MatchResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateMatchEvent not implemented")
+}
+func (UnimplementedMatchServiceServer) GetAdminMatchList(context.Context, *emptypb.Empty) (*MatchListResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetAdminMatchList not implemented")
 }
 func (UnimplementedMatchServiceServer) mustEmbedUnimplementedMatchServiceServer() {}
 func (UnimplementedMatchServiceServer) testEmbeddedByValue()                      {}
@@ -138,6 +175,42 @@ func _MatchService_CreateMatch_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MatchService_UpdateMatchEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateMatchEventRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MatchServiceServer).UpdateMatchEvent(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MatchService_UpdateMatchEvent_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MatchServiceServer).UpdateMatchEvent(ctx, req.(*UpdateMatchEventRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _MatchService_GetAdminMatchList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(emptypb.Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MatchServiceServer).GetAdminMatchList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MatchService_GetAdminMatchList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MatchServiceServer).GetAdminMatchList(ctx, req.(*emptypb.Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // MatchService_ServiceDesc is the grpc.ServiceDesc for MatchService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -153,7 +226,15 @@ var MatchService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "CreateMatch",
 			Handler:    _MatchService_CreateMatch_Handler,
 		},
+		{
+			MethodName: "UpdateMatchEvent",
+			Handler:    _MatchService_UpdateMatchEvent_Handler,
+		},
+		{
+			MethodName: "GetAdminMatchList",
+			Handler:    _MatchService_GetAdminMatchList_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/match.proto",
+	Metadata: "match-service/proto/match.proto",
 }

@@ -2,43 +2,81 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
+	"time" // Added for initial match data
+
+	"google.golang.org/grpc"
 
 	"github.com/abaika-abay/live_sports_project/common/pkg/config"
 	"github.com/abaika-abay/live_sports_project/common/pkg/db"
-	"github.com/abaika-abay/live_sports_project/common/pkg/logger"
-	pb "github.com/abaika-abay/live_sports_project/match-service/proto"
+	"github.com/abaika-abay/live_sports_project/match-service/proto"
+	"github.com/abaika-abay/live_sports_project/match-service/repository"
 	"github.com/abaika-abay/live_sports_project/match-service/service"
-	"google.golang.org/grpc"
+	"github.com/abaika-abay/live_sports_project/match-service/sportradar" // Import sportradar
 )
 
 func main() {
-	cfg, err := config.LoadConfig()
+	c, err := config.LoadConfig()
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		log.Fatalf("failed to load config: %v", err)
 	}
 
-	logger.InitLogger(cfg.Log.Level)
-
-	mongoDB, err := db.NewMongoDB(cfg.Mongo.URI, cfg.Mongo.Database)
+	dbHandler, err := db.InitMongoDB(c.DBUrl)
 	if err != nil {
-		log.Fatalf("Failed to connect to MongoDB: %v", err)
+		log.Fatalf("failed to connect to MongoDB: %v", err)
 	}
-	defer mongoDB.Disconnect(context.Background())
+	defer func() {
+		if err := dbHandler.Client.Disconnect(context.Background()); err != nil {
+			log.Fatalf("failed to disconnect from MongoDB: %v", err)
+		}
+	}()
 
-	matchService := service.NewMatchService(mongoDB)
+	// Initialize Sportradar Client
+	srClient := sportradar.NewSportradarClient()
 
-	lis, err := net.Listen("tcp", cfg.Server.Port)
+	// --- Optional: Add some initial mock match data to Sportradar and MongoDB ---
+	// You might automate this with a migration script or a dedicated admin tool
+	repo := repository.NewMatchRepository(dbHandler)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	initialMatchID := "match-123"
+	initialMatch := &repository.Match{
+		MatchID:    initialMatchID,
+		HomeTeam:   "Real Madrid",
+		AwayTeam:   "Barcelona",
+		StartTime:  time.Now().Add(1 * time.Hour).Format(time.RFC3339),
+		Status:     "Scheduled",
+		HomeScore:  0,
+		AwayScore:  0,
+		LastEvent:  "Match scheduled",
+		Possession: 50,
+		Shots:      0,
+		Fouls:      0,
+		Cards:      []string{},
+	}
+	err = repo.CreateMatch(ctx, initialMatch)
 	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
+		fmt.Printf("Warning: Failed to create initial match %s in DB (might already exist): %v\n", initialMatchID, err)
+	}
+	srClient.AddInitialMatchData(initialMatch) // Add to mock Sportradar
+	fmt.Printf("Initialized mock match data for: %s\n", initialMatchID)
+	// --- End of Optional Initial Data ---
+
+	matchService := service.NewMatchService(dbHandler, srClient) // Pass Sportradar client here
+
+	lis, err := net.Listen("tcp", c.Port)
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
 	}
 
-	grpcServer := grpc.NewServer()
-	pb.RegisterMatchServiceServer(grpcServer, matchService)
+	s := grpc.NewServer()
+	proto.RegisterMatchServiceServer(s, matchService)
 
-	logger.InfoLogger.Println("Match Service starting on " + cfg.Server.Port)
-	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
+	log.Printf("Match Service listening at %v", lis.Addr())
+	if err := s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
 	}
 }
