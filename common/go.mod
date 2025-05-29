@@ -1,4 +1,4 @@
-module github.com/abaika-abay/live_sports_project
+module github.com/abaika-abay/live_sports_project/common
 
 go 1.23.4
 
