@@ -1,0 +1,9 @@
+server:
+  port: ":50051"
+mongo:
+  uri: "mongodb://localhost:27017"
+  database: "live_sports"
+log:
+  level: "info"
+nats:
+  url: "nats://localhost:4222"
