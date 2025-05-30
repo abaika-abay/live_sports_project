@@ -1,0 +1,103 @@
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    background-color: #f0f2f5;
+    color: #333;
+}
+
+.container {
+    background-color: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    width: 90%;
+    max-width: 500px;
+}
+
+h1 {
+    color: #2c3e50;
+    margin-bottom: 25px;
+    font-size: 2em;
+}
+
+.message {
+    padding: 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    font-size: 1.1em;
+}
+
+#loading {
+    background-color: #e0f7fa;
+    color: #00796b;
+    border: 1px solid #b2ebf2;
+}
+
+.error-message {
+    background-color: #ffebee;
+    color: #c62828;
+    border: 1px solid #ef9a9a;
+}
+
+#match-display p {
+    margin: 10px 0;
+    font-size: 1.2em;
+}
+
+.team-names {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #34495e;
+    margin-bottom: 15px;
+}
+
+.score {
+    font-size: 3em;
+    font-weight: bold;
+    color: #e74c3c;
+    margin-bottom: 15px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+}
+
+.status {
+    font-style: italic;
+    color: #7f8c8d;
+    font-size: 1em;
+}
+
+.last-event {
+    font-size: 1.1em;
+    color: #2980b9;
+    margin-top: 15px;
+}
+
+.simulate-button {
+    background-color: #4CAF50; /* Green */
+    color: white;
+    padding: 12px 25px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 1.1em;
+    margin-top: 30px;
+    transition: background-color 0.3s ease;
+}
+
+.simulate-button:hover {
+    background-color: #45a049;
+}
+
+.simulate-button:active {
+    background-color: #3e8e41;
+}
+
+.info-text {
+    font-size: 0.9em;
+    color: #95a5a6;
+    margin-top: 15px;
+}

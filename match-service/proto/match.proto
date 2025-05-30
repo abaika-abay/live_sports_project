@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package match;
+import "google/protobuf/empty.proto";
+option go_package = "github.com/abaika-abay/live_sports_project/match-service/proto";
+
+// MatchRequest used for retrieving match updates by ID
+message MatchRequest {
+  string match_id = 1;
+}
+
+// MatchResponse contains current match data
+message MatchResponse {
+  string match_id = 1;
+  string status = 2;
+  int32 home_score = 3;
+  int32 away_score = 4;
+  string last_event = 5;
+  int32 possession = 6;
+  int32 shots = 7;
+  int32 fouls = 8;
+  repeated string cards = 9; // Added cards field
+}
+
+// CreateMatchRequest for creating a new match
+message CreateMatchRequest {
+  string match_id = 1;
+  string home_team = 2; // Add home_team
+  string away_team = 3; // Add away_team
+  string start_time = 4; // Add start_time
+}
+
+// New message for updating match events
+message UpdateMatchEventRequest {
+  string match_id = 1;
+  string event_type = 2; // e.g., "goal", "foul", "card", "substitution"
+  string description = 3; // e.g., "Messi scores", "Ronaldo gets yellow card"
+  int32 home_score_change = 4; // Use for goal events
+  int32 away_score_change = 5; // Use for goal events
+  string card_color = 6; // Use for card events (e.g., "yellow", "red")
+  // You might add more fields for specific event types if needed
+}
+
+// Event details (similar to your Event class in the diagram)
+message Event {
+  string event_id = 1;
+  string match_id = 2;
+  string event_type = 3;
+  string description = 4;
+  string timestamp = 5; // ISO 8601 format
+}
+
+
+service MatchService {
+  rpc GetMatchUpdates(MatchRequest) returns (MatchResponse);
+  rpc CreateMatch(CreateMatchRequest) returns (MatchResponse);
+  // New RPC for admin to update match events
+  rpc UpdateMatchEvent(UpdateMatchEventRequest) returns (MatchResponse);
+}
+
+// Required for GetAdminMatchList if you add it
+message MatchListResponse {
+  repeated MatchResponse matches = 1;
+}
+

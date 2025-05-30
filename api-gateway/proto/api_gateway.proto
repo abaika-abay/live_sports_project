@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package api;
+
+option go_package = "github.com/abaika-abay/live_sports_project/api-gateway/proto";
+
+service ApiGatewayService {
+  rpc RegisterUser (RegisterUserRequest) returns (RegisterUserResponse);
+  rpc CreateMatch (CreateMatchRequest) returns (CreateMatchResponse);
+}
+
+message RegisterUserRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+}
+
+message RegisterUserResponse {
+  string user_id = 1;
+  string message = 2;
+  bool success = 3;
+}
+
+message CreateMatchRequest {
+  string match_id = 1;
+  string home_team = 2;
+  string away_team = 3;
+}
+
+message CreateMatchResponse {
+  string match_id = 1;
+  string status = 2;
+}

@@ -1,0 +1,16 @@
+{
+  "name": "live-sports-project-root",
+  "version": "1.0.0",
+  "description": "Root package for Live Sports Project",
+  "main": "index.js",
+  "scripts": {
+    "build-proto": "npm install grpc-web protobufjs && node ./frontend/node_modules/protobufjs/bin/pbjs -t static-module -w commonjs --keep-case -o ./frontend/proto/match_pb_messages.js -p ./match-service/proto -p /usr/include/google/protobuf ./match-service/proto/match.proto && node ./frontend/node_modules/protobufjs/bin/pbts -o ./frontend/proto/match_pb_messages.d.ts ./frontend/proto/match_pb_messages.js && node ./frontend/node_modules/protobufjs/bin/pbjs -t static-module -w commonjs --keep-case -o ./frontend/proto/google_protobuf_empty_pb.js -p /usr/include/google/protobuf /usr/include/google/protobuf/empty.proto"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "grpc-web": "^1.5.0",
+    "protobufjs": "^7.5.3"
+  }
+}
